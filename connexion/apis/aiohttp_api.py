@@ -302,10 +302,12 @@ class AioHttpApi(AbstractAPI):
                         files[k].append(v)
                     except AttributeError:
                         files[k] = [files[k], v]
-                elif not isinstance(v, web.FileField):
-                    # put normal fields as an array, that's how werkzeug does that for Flask
-                    # and that's what Connexion expects in its processing functions
+                elif isinstance(v, str):
                     form[k] = [v]
+                elif isinstance(v, (bytes, bytearray)):
+                    form[k] = [v.decode()]
+                else:
+                    raise TypeError(f'Failed to handle {type(v)}, did aiohttp introduced new type?')
             body = b''
         else:
             logger.debug('Reading data from request')

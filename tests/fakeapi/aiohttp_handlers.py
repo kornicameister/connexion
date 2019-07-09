@@ -115,3 +115,8 @@ def aiohttp_multipart_mixed_many_files(dir_name, test_count, files):
             'testCount': test_count,
         },
     )
+
+
+@asyncio.coroutine
+def aiohttp_multipart_with_json_part(json):
+    return aiohttp.web.json_response(data=json)

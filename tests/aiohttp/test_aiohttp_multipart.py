@@ -103,3 +103,25 @@ def test_mixed_multipart_many_files(aiohttp_app, aiohttp_client):
     assert data['dirName'] == os.path.dirname(__file__)
     assert data['testCount'] == len(files_field)
     assert data['filesCount'] == len(files_field)
+
+
+@asyncio.coroutine
+def test_multipart_with_json_part(aiohttp_app, aiohttp_client):
+    app_client = yield from aiohttp_client(aiohttp_app.app)
+
+    json_obj = {
+        'foo': __name__,
+        'bar': os.path.dirname(__name__),
+    }
+    form_data = aiohttp.FormData()
+    form_data.add_field('json', json.dumps(json_obj), content_type='application/json')
+
+    resp = yield from app_client.post(
+        '/v1.0/with_json_part',
+        data=form_data(),
+    )
+
+    data = yield from resp.json()
+
+    assert resp.status == 200
+    assert data == json_obj

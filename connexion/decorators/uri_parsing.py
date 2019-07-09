@@ -4,8 +4,10 @@ import functools
 import logging
 
 import six
+import json
 
-from .decorator import BaseDecorator
+from connexion.decorators.decorator import BaseDecorator
+from connexion import utils
 
 logger = logging.getLogger('connexion.decorators.uri_parsing')
 
@@ -58,7 +60,7 @@ class AbstractURIParser(BaseDecorator):
             classname=self.__class__.__name__)  # pragma: no cover
 
     @abc.abstractmethod
-    def resolve_form(self, form_data):
+    def resolve_form(self, form_data, content_type):
         """ Resolve cases where form parameters are provided multiple times.
         """
 
@@ -88,7 +90,7 @@ class AbstractURIParser(BaseDecorator):
         the parameter definition.
         """
 
-    def resolve_params(self, params, _in):
+    def resolve_params(self, params, _in, content_type=None):
         """
         takes a dict of parameters, and resolves the values into
         the correct array type handling duplicate values, and splitting
@@ -139,7 +141,7 @@ class AbstractURIParser(BaseDecorator):
 
             request.query = self.resolve_query(query)
             request.path_params = self.resolve_path(path_params)
-            request.form = self.resolve_form(form)
+            request.form = self.resolve_form(form, content_type=request.headers['content-type'])
             response = function(request)
             return response
 
@@ -163,15 +165,29 @@ class OpenAPIURIParser(AbstractURIParser):
     def param_schemas(self):
         return {k: v.get('schema', {}) for k, v in self.param_defns.items()}
 
-    def resolve_form(self, form_data):
+    def resolve_form(self, form_data, content_type=None):
         if self._body_schema is None or self._body_schema.get('type') != 'object':
             return form_data
         for k in form_data:
             encoding = self._body_encoding.get(k, {"style": "form"})
             defn = self.form_defns.get(k, {})
+
+            is_array_type = defn.get('type', '') == 'array'
+            is_obj_type = defn.get('type', '') == 'object'
+
+            # according to https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.0.md#encodingObject
+            # if defn[type] -> object we treat that as if encoding[contentType] == application/json
+
             # TODO support more form encoding styles
-            form_data[k] = \
-                self._resolve_param_duplicates(form_data[k], encoding, 'form')
+            if is_obj_type:
+                form_data[k] = json.loads(form_data[k][0])
+            else:
+                form_data[k] = self._resolve_param_duplicates(
+                    form_data[k],
+                    encoding,
+                    'form',
+                )
+
             if defn and defn["type"] == "array":
                 form_data[k] = self._split(form_data[k], encoding, 'form')
         return form_data
@@ -225,8 +241,8 @@ class Swagger2URIParser(AbstractURIParser):
     def param_schemas(self):
         return self._param_defns  # swagger2 conflates defn and schema
 
-    def resolve_form(self, form_data):
-        return self.resolve_params(form_data, 'form')
+    def resolve_form(self, form_data, content_type):
+        return self.resolve_params(form_data, 'form', content_type)
 
     def resolve_query(self, query_data):
         return self.resolve_params(query_data, 'query')

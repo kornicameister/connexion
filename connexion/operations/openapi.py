@@ -1,6 +1,7 @@
 import logging
 from copy import deepcopy
 
+from connexion import http_facts
 from connexion.operations.abstract import AbstractOperation
 
 from ..decorators.uri_parsing import OpenAPIURIParser
@@ -273,6 +274,8 @@ class OpenAPIOperation(AbstractOperation):
 
         if x_body_name in arguments or has_kwargs:
             return {x_body_name: res}
+        elif self.consumes[0] in http_facts.FORM_CONTENT_TYPES:
+            return res
         return res
 
     def _sanitize_body_argument(self, body_arg, body_props, additional_props, sanitize):

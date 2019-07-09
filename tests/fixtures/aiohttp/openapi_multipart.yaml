@@ -130,3 +130,39 @@ paths:
                   items:
                     type: string
                     format: binary
+  "/with_json_part":
+    post:
+      summary: Uploads many files
+      description: Handles multipart file upload.
+      operationId: fakeapi.aiohttp_handlers.aiohttp_multipart_with_json_part
+      responses:
+        "200":
+          description: OK response
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  foo:
+                    type: string
+                  bar:
+                    type: string
+        default:
+          description: unexpected error
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                json:
+                  type: object
+                  properties:
+                    foo:
+                      type: string
+                    bar:
+                      type: string
+            encoding:
+              json:
+                contentType: application/json
